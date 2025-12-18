@@ -145,3 +145,47 @@ def test_custom_shapes():
         + coord_equal()
     )
     assert p == "custom_shapes"
+
+
+def test_narwhals_backends():
+    """Test that geom_point works with multiple dataframe backends"""
+    from copy import deepcopy
+
+    # Create pandas reference
+    pandas_data = pd.DataFrame({"x": [1, 2, 3], "y": [1, 2, 3]})
+    p_pandas = ggplot(pandas_data, aes("x", "y")) + geom_point()
+
+    # Test with polars if available
+    try:
+        import polars as pl
+
+        polars_data = pl.DataFrame({"x": [1, 2, 3], "y": [1, 2, 3]})
+        p_polars = ggplot(polars_data, aes("x", "y")) + geom_point()
+        # Verify plot constructs successfully
+        assert p_polars.layers[0].geom.__class__.__name__ == "geom_point"
+        # Build the plot to trigger data conversion in layers
+        p_polars_copy = deepcopy(p_polars)
+        p_polars_copy._setup()
+        p_polars_copy._build()
+        # Verify layer data was converted to pandas
+        assert isinstance(p_polars_copy.layers[0].data, pd.DataFrame)
+    except ImportError:
+        pass
+
+    # Test with pyarrow if available
+    try:
+        import pyarrow as pa
+
+        pyarrow_data = pa.table({"x": [1, 2, 3], "y": [1, 2, 3]})
+        p_pyarrow = ggplot(pyarrow_data, aes("x", "y")) + geom_point()
+        assert p_pyarrow.layers[0].geom.__class__.__name__ == "geom_point"
+        # Build the plot to trigger data conversion
+        p_pyarrow_copy = deepcopy(p_pyarrow)
+        p_pyarrow_copy._setup()
+        p_pyarrow_copy._build()
+        assert isinstance(p_pyarrow_copy.layers[0].data, pd.DataFrame)
+    except ImportError:
+        pass
+
+    # At minimum, pandas should work
+    assert p_pandas.layers[0].geom.__class__.__name__ == "geom_point"

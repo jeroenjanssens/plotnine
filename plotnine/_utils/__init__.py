@@ -802,6 +802,49 @@ def order_as_data_mapping(
     return data, mapping
 
 
+def to_pandas_via_narwhals(data: Any) -> pd.DataFrame:
+    """
+    Convert any dataframe-like object to pandas using narwhals.
+
+    This supports pandas, polars, pyarrow, and any other narwhals-compatible
+    dataframe backend.
+
+    Parameters
+    ----------
+    data : Any
+        A dataframe from any narwhals-compatible backend
+
+    Returns
+    -------
+    pd.DataFrame
+        Pandas representation of the data
+
+    Raises
+    ------
+    TypeError
+        If data is not a supported dataframe type
+    """
+    import narwhals as nw
+
+    # Fast-path: already pandas
+    if isinstance(data, pd.DataFrame):
+        return data
+
+    # Legacy: has to_pandas method
+    if hasattr(data, "to_pandas"):
+        return data.to_pandas()
+
+    # Try narwhals conversion
+    try:
+        nw_df = nw.from_native(data, eager_only=True)
+        return nw.to_native(nw_df)
+    except Exception:
+        raise TypeError(
+            f"Data must be a pandas DataFrame or narwhals-compatible "
+            f"dataframe (polars, pyarrow, etc.), got {type(data)}"
+        )
+
+
 # Returning a type guard here is not fully sound, because if `obj`
 # is a callable, we aren't checking that it has no required args
 # and we can't check the return value's type.
@@ -820,11 +863,17 @@ def is_data_like(obj: Any) -> TypeGuard[DataLike]:
         Whether obj could represent data as expected by
         ggplot(), geom() or stat().
     """
-    return (
-        isinstance(obj, pd.DataFrame)
-        or callable(obj)
-        or hasattr(obj, "to_pandas")
-    )
+    if isinstance(obj, pd.DataFrame) or callable(obj) or hasattr(obj, "to_pandas"):
+        return True
+
+    # Check if narwhals can handle it
+    try:
+        import narwhals as nw
+
+        nw.from_native(obj, eager_only=True, pass_through=False)
+        return True
+    except Exception:
+        return False
 
 
 def interleave(*arrays):

@@ -292,9 +292,16 @@ class ggplot:
         """
         Overload the >> operator to receive a dataframe
         """
+        import pandas as pd
+
+        from ._utils import to_pandas_via_narwhals
+
         other = ungroup(other)
         if is_data_like(other):
             if self.data is None:
+                # Convert to pandas if needed
+                if not isinstance(other, pd.DataFrame) and not callable(other):
+                    other = to_pandas_via_narwhals(other)
                 self.data = other
             else:
                 raise PlotnineError("`>>` failed, ggplot object has data.")

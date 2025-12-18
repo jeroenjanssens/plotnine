@@ -174,12 +174,12 @@ class layer:
         plot_data :
             ggplot object data
         """
+        from ._utils import to_pandas_via_narwhals
+
         if plot_data is None:
             data = pd.DataFrame()
-        elif hasattr(plot_data, "to_pandas"):
-            data = cast("DataFrameConvertible", plot_data).to_pandas()
         else:
-            data = cast("pd.DataFrame", plot_data)
+            data = to_pandas_via_narwhals(plot_data)
 
         # Each layer that does not have data gets a copy of
         # of the ggplot.data. If it has data it is replaced
@@ -202,15 +202,8 @@ class layer:
                     "Data function must return a Pandas dataframe"
                 )
         else:
-            # Recognise polars dataframes
-            if hasattr(self._data, "to_pandas"):
-                self.data = cast(
-                    "DataFrameConvertible", self._data
-                ).to_pandas()
-            elif isinstance(self._data, pd.DataFrame):
-                self.data = self._data.copy()
-            else:
-                raise TypeError(f"Data has a bad type: {type(self.data)}")
+            # Convert any narwhals-compatible dataframe
+            self.data = to_pandas_via_narwhals(self._data).copy()
 
     def _make_layer_mapping(self, plot_mapping: aes):
         """
