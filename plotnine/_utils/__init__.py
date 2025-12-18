@@ -16,9 +16,8 @@ from typing import TYPE_CHECKING
 from warnings import warn
 
 import mizani._colors.utils as color_utils
+import narwhals as nw
 import numpy as np
-import pandas as pd
-from pandas.core.groupby import DataFrameGroupBy
 
 from ..exceptions import PlotnineError, PlotnineWarning
 from ..mapping import aes
@@ -27,6 +26,7 @@ if TYPE_CHECKING:
     from typing import Any, Callable, Literal, TypeVar
 
     import numpy.typing as npt
+    from narwhals.typing import FrameT, IntoDataFrame
     from typing_extensions import TypeGuard
 
     from plotnine.typing import (
@@ -76,6 +76,8 @@ def is_list_like(obj: Any) -> bool:
     """
     Return True if *obj* is a list, tuple, series or array
     """
+    import pandas as pd
+
     return isinstance(obj, (list, tuple, pd.Series, np.ndarray))
 
 
@@ -216,10 +218,10 @@ def _margins(
 
 
 def add_margins(
-    df: pd.DataFrame,
+    df,
     vars: tuple[Sequence[str], Sequence[str]],
     margins: bool | Sequence[str] = True,
-) -> pd.DataFrame:
+):
     """
     Add margins to a data frame.
 
@@ -238,6 +240,8 @@ def add_margins(
         variable names to compute margins for.
         True will compute all possible margins.
     """
+    import pandas as pd
+
     margin_vars = _margins(vars, margins)
     if not margin_vars:
         return df
@@ -270,7 +274,7 @@ def add_margins(
     return merged
 
 
-def ninteraction(df: pd.DataFrame, drop: bool = False) -> list[int]:
+def ninteraction(df, drop: bool = False) -> list[int]:
     """
     Compute a unique numeric id for each unique row in
     a data frame. The ids start at 1 -- in the spirit
@@ -334,6 +338,8 @@ def _id_var(x: AnyArrayLike, drop: bool = False) -> list[int]:
     drop : bool
         Whether to drop unused factor levels
     """
+    import pandas as pd
+
     if len(x) == 0:
         return []
 
@@ -386,6 +392,10 @@ def join_keys(x, y, by=None):
         x and y dataframes would have the same key in the
         output. The key elements start at 1.
     """
+    import pandas as pd
+
+    import pandas as pd
+
     if by is None:
         by = slice(None, None, None)
 
@@ -506,6 +516,8 @@ def remove_missing(
     finite : bool
         If True replace the infinite values in addition to the NaNs
     """
+    import pandas as pd
+
     n = len(data)
 
     if vars is None:
@@ -532,12 +544,12 @@ def remove_missing(
 
 
 def groupby_apply(
-    df: pd.DataFrame,
+    df,
     cols: str | list[str],
-    func: Callable[..., pd.DataFrame],
+    func,
     *args: tuple[Any],
     **kwargs: Any,
-) -> pd.DataFrame:
+):
     """
     Groupby cols and call the function fn on each grouped dataframe.
 
@@ -556,6 +568,10 @@ def groupby_apply(
     as it calls fn twice on the first dataframe. If the nested code also
     does the same thing, it can be very expensive
     """
+    import pandas as pd
+
+    # For now, keep using pandas for compatibility
+    # TODO: Convert to pure narwhals once all modules are migrated
     if df.empty:
         return df.copy()
 
@@ -566,9 +582,8 @@ def groupby_apply(
 
     lst = []
     for _, d in df.groupby(cols, observed=True):
-        # function fn should be free to modify dataframe d, therefore
-        # do not mark d as a slice of df i.e no SettingWithCopyWarning
         lst.append(func(d, *args, **kwargs))
+
     return pd.concat(lst, axis=axis, ignore_index=True)
 
 
@@ -741,6 +756,8 @@ def data_mapping_as_kwargs(args, kwargs):
 
 def ungroup(data: DataLike) -> DataLike:
     """Return an ungrouped DataFrame, or pass the original data back."""
+    from pandas.core.groupby import DataFrameGroupBy
+
 
     if isinstance(data, DataFrameGroupBy):
         return data.obj
@@ -802,7 +819,7 @@ def order_as_data_mapping(
     return data, mapping
 
 
-def to_pandas_via_narwhals(data: Any) -> pd.DataFrame:
+def to_pandas_via_narwhals(data: Any):
     """
     Convert any dataframe-like object to pandas using narwhals.
 
@@ -816,7 +833,7 @@ def to_pandas_via_narwhals(data: Any) -> pd.DataFrame:
 
     Returns
     -------
-    pd.DataFrame
+    DataFrame
         Pandas representation of the data
 
     Raises
@@ -824,7 +841,7 @@ def to_pandas_via_narwhals(data: Any) -> pd.DataFrame:
     TypeError
         If data is not a supported dataframe type
     """
-    import narwhals as nw
+    import pandas as pd
 
     # Fast-path: already pandas
     if isinstance(data, pd.DataFrame):
@@ -863,13 +880,13 @@ def is_data_like(obj: Any) -> TypeGuard[DataLike]:
         Whether obj could represent data as expected by
         ggplot(), geom() or stat().
     """
+    import pandas as pd
+
     if isinstance(obj, pd.DataFrame) or callable(obj) or hasattr(obj, "to_pandas"):
         return True
 
     # Check if narwhals can handle it
     try:
-        import narwhals as nw
-
         nw.from_native(obj, eager_only=True, pass_through=False)
         return True
     except Exception:
@@ -913,6 +930,8 @@ def resolution(x, zero=True):
     res : resolution of x
         If x is an integer array, then the resolution is 1
     """
+    import pandas as pd
+
     from mizani.bounds import zero_range
 
     x = np.asarray(x)
@@ -930,7 +949,7 @@ def resolution(x, zero=True):
     return np.min(np.diff(np.sort(x)))
 
 
-def cross_join(df1: pd.DataFrame, df2: pd.DataFrame) -> pd.DataFrame:
+def cross_join(df1, df2):
     """
     Return a cross between df1 & df2 if each is not empty
     """
@@ -1049,6 +1068,8 @@ class array_kind:
         out : bool
             Whether array `arr` is an ordered categorical
         """
+        import pandas as pd
+
         if isinstance(arr.dtype, pd.CategoricalDtype):
             return arr.cat.ordered
         return False
@@ -1068,6 +1089,8 @@ class array_kind:
         bool
             Whether array `arr` is a categorical
         """
+        import pandas as pd
+
         if not hasattr(arr, "dtype"):
             return False
 
